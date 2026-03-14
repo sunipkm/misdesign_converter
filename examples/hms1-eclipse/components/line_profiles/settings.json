@@ -1,0 +1,13 @@
+{
+    "separator": "_line_profile_",
+    "settings": {
+        "sky": {
+        "4861": "auto",
+        "6563": "auto"
+        },
+        "sol": {
+            "4861": "auto",
+            "6563": "auto"
+        }
+    }
+}

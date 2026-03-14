@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "misdesign_converter"
+version = "0.0.1"
+description = "L1 converter for an imaging spectrograph defined with MisDesigner"
+requires-python = ">=3.9"
+authors = [
+  { name = "Sunip K. Mukherjee", email = "sunipkmukherjee@gmail.com" },
+  { name = "Charmi Patel", email = "charmi_patel2@student.uml.edu" },
+]
+readme = "README.md"
+license = "MIT"
+
+dependencies = [
+   "misdesigner @ git+https://github.com/sunipkm/misdesigner@628eb858b67964b1a160605249a19121b02fdfd8",
+    "dask",
+    "alive_progress",
+]

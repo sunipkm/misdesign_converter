@@ -1,0 +1,239 @@
+{
+    "system": "HMS-A ECLIPSE",
+    "optics": {
+        "fl_collimator": 435,
+        "fl_mosaic": 435,
+        "sigma": 98.76,
+        "slits": {
+            "BL": {
+                "x": 21.43,
+                "y": -20.0,
+                "width": 0.25,
+                "height": 40.0,
+                "ranges": [
+                    [
+                        3150,
+                        4450
+                    ],
+                    [
+                        7000,
+                        8000
+                    ]
+                ]
+            },
+            "BR": {
+                "x": 0,
+                "y": -20.0,
+                "width": 0.25,
+                "height": 40.0,
+                "ranges": [
+                    [
+                        4950,
+                        10000
+                    ]
+                ]
+            },
+            "TL": {
+                "x": 21.43,
+                "y": 20.0,
+                "width": 0.25,
+                "height": 40.0,
+                "ranges": [
+                    [
+                        5900,
+                        10000
+                    ]
+                ]
+            },
+            "TR": {
+                "x": 0,
+                "y": 20.0,
+                "width": 0.25,
+                "height": 40.0,
+                "ranges": [
+                    [
+                        4350,
+                        5000
+                    ]
+                ]
+            }
+        },
+        "mosaic": {
+            "x": -42.379999999999995,
+            "y": 0.7400000000000002,
+            "width": 52.5,
+            "height": 55.19,
+            "windows": [
+                {
+                    "x": 0,
+                    "y": 1.94,
+                    "width": 29.26,
+                    "height": 25.02,
+                    "ranges": [
+                        [
+                            4810,
+                            4911
+                        ]
+                    ],
+                    "name": "4861"
+                },
+                {
+                    "x": 29.26,
+                    "y": 1.94,
+                    "width": 20.24,
+                    "height": 25.02,
+                    "ranges": [
+                        [
+                            6375,
+                            6688
+                        ]
+                    ],
+                    "name": "6563"
+                },
+                {
+                    "x": 0,
+                    "y": 26.96,
+                    "width": 13.9,
+                    "height": 25.02,
+                    "ranges": [
+                        [
+                            7724,
+                            7824
+                        ]
+                    ],
+                    "name": "7774"
+                },
+                {
+                    "x": 13.9,
+                    "y": 26.96,
+                    "width": 8.91,
+                    "height": 25.02,
+                    "ranges": [
+                        [
+                            5550,
+                            5650
+                        ]
+                    ],
+                    "name": "5577"
+                },
+                {
+                    "x": 22.810000000000002,
+                    "y": 26.96,
+                    "width": 9.2,
+                    "height": 25.02,
+                    "ranges": [
+                        [
+                            6270,
+                            6370
+                        ]
+                    ],
+                    "name": "6300"
+                },
+                {
+                    "x": 32.010000000000005,
+                    "y": 26.96,
+                    "width": 17.5,
+                    "height": 25.02,
+                    "ranges": [
+                        [
+                            4200,
+                            4300
+                        ]
+                    ],
+                    "name": "4278"
+                }
+            ]
+        }
+    },
+    "alignment": {
+        "alpha": -67.55,
+        "gamma_ofst": 0
+    },
+    "lines": [
+        {
+            "wavelength": 6300,
+            "slit_key": null,
+            "plot_styles": {
+                "color": "red",
+                "lw": 1,
+                "ls": "-.",
+                "ms": 0.2,
+                "label": "6300\u00c5"
+            },
+            "name": null
+        },
+        {
+            "wavelength": 5577,
+            "slit_key": null,
+            "plot_styles": {
+                "color": "green",
+                "lw": 1,
+                "ls": "-.",
+                "ms": 0.2,
+                "label": "5577\u00c5"
+            },
+            "name": null
+        },
+        {
+            "wavelength": 7774,
+            "slit_key": null,
+            "plot_styles": {
+                "color": "brown",
+                "lw": 1,
+                "ls": "-.",
+                "ms": 0.2,
+                "label": "7774\u00c5"
+            },
+            "name": null
+        },
+        {
+            "wavelength": 4278,
+            "slit_key": null,
+            "plot_styles": {
+                "color": "violet",
+                "lw": 1,
+                "ls": "-.",
+                "ms": 0.2,
+                "label": "4278\u00c5"
+            },
+            "name": null
+        },
+        {
+            "wavelength": 6563,
+            "slit_key": null,
+            "plot_styles": {
+                "color": "orange",
+                "lw": 1,
+                "ls": "-.",
+                "ms": 0.2,
+                "label": "6563\u00c5"
+            },
+            "name": null
+        },
+        {
+            "wavelength": 4861,
+            "slit_key": null,
+            "plot_styles": {
+                "color": "cyan",
+                "lw": 1,
+                "ls": "-.",
+                "ms": 0.2,
+                "label": "4861\u00c5"
+            },
+            "name": null
+        }
+    ],
+    "camera": {
+        "aperture": 254.46900494077323,
+        "scale": 1,
+        "pixel_size": 0.05059999999999999,
+        "exposure": 1,
+        "optical_efficiency": 1,
+        "width": null,
+        "height": null,
+        "well_depth": null,
+        "qe_curve": null,
+        "readout_noise": null,
+        "dark_current": null
+    }
+}
