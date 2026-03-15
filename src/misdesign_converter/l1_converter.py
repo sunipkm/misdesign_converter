@@ -702,8 +702,8 @@ class L1Converter:
             windows = self.window
         outputs = deque()
         filedict: Dict[str, Dict[str, List[Tuple[Path, str]]]] = {}
-        tempdir = self.outdir / 'temp'
-        tempdir.mkdir(exist_ok=True, parents=True)
+        tempmgr = TemporaryDirectory()
+        tempdir = Path(tempmgr.name)
         mdigit = len(str(self.memlimit))
         secondary = None
         if self.secondary is not None:
@@ -760,8 +760,6 @@ class L1Converter:
                                 )
                             }
                             temppath = tempdir / f'{uuid1().hex}.nc'
-                            outdir = self.outdir / wdate
-                            outdir.mkdir(exist_ok=True, parents=True)
                             outfile = f'{self.prefix}_{key}_{wdate}'
                             bar.text = f'Writing {outfile}...'
                             dataset.to_netcdf(
@@ -779,33 +777,17 @@ class L1Converter:
             for wdate, keyfiles in filedict.items():
                 for key, files in keyfiles.items():
                     ndigit = len(str(len(files)))
+                    outdir = self.outdir / wdate
+                    outdir.mkdir(parents=True, exist_ok=True)
                     for fidx, (temppath, outfile) in enumerate(files):
-                        dest = self.outdir / wdate / \
-                            f'{outfile}[{fidx:0{ndigit}d}].nc'
+                        dest = outdir / f'{outfile}[{fidx:0{ndigit}d}].nc'
                         temppath.rename(dest)
-            try:
-                tempdir.rmdir()
-            except OSError:
-                LOGGER.warning(
-                    f'Temporary directory {tempdir} is not empty, skipping removal.')
+
             LOGGER.info('Processing completed.')
         except KeyboardInterrupt:
             LOGGER.warning(
-                'Processing interrupted by user. Cleaning up temporary files...')
-            for wdate, keyfiles in filedict.items():
-                for key, files in keyfiles.items():
-                    for temppath, _ in files:
-                        try:
-                            temppath.unlink()
-                        except OSError:
-                            LOGGER.warning(
-                                f'Failed to delete temporary file {temppath}.')
-            try:
-                tempdir.rmdir()
-            except OSError:
-                LOGGER.warning(
-                    f'Temporary directory {tempdir} is not empty, skipping removal.')
-            LOGGER.info('Cleanup completed. Exiting.')
+                'Processing interrupted by user.'
+            )
 
     def status(self, windows: List[str]) -> str:
         output = [f'Processing {len(self.imagefiles)} files']
