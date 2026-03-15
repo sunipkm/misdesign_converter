@@ -18,4 +18,5 @@ dependencies = [
    "misdesigner @ git+https://github.com/sunipkm/misdesigner@628eb858b67964b1a160605249a19121b02fdfd8",
     "dask",
     "alive_progress",
+    "scipy",
 ]

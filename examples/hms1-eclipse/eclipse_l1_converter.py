@@ -6,7 +6,7 @@ from PIL import Image
 import numpy as np
 from xarray import DataArray, Dataset
 
-from misdesign_converter import L1Converter, MisCurveRemover, DetectorNoise
+from misdesign_converter import L1Converter, MisCurveRemover, DetectorNoise, find_outlier_pixels
 
 logging.basicConfig(
     level=logging.INFO,
@@ -19,14 +19,16 @@ def read(file: Path) -> Tuple[np.ndarray, float, float, float, Dict[str, Any]]:
     with fits.open(file) as hdul:
         if len(hdul) == 0:
             raise ValueError(
-                f'FITS file {file} does not contain any HDUs.')
+                f'FITS file {file} does not contain any HDUs.'
+            )
         elif len(hdul) == 1:
             hdu = hdul[0]
         elif len(hdul) == 2:
             hdu = hdul[1]
         else:
             raise ValueError(
-                f'FITS file {file} contains more than 2 HDUs, which is unexpected.')
+                f'FITS file {file} contains more than 2 HDUs, which is unexpected.'
+            )
         data = np.array(hdu.data, dtype=np.float32)  # type: ignore
         header = dict(hdu.header)  # type: ignore
         tstamp = header['TIMESTAMP']*1e-3  # in ms, convert to s
@@ -34,7 +36,9 @@ def read(file: Path) -> Tuple[np.ndarray, float, float, float, Dict[str, Any]]:
             header['EXPOSURE_MS']
         )*1e-3  # in ms, convert to s
         temperature = header['CCDTEMP']
-
+        # Remove 'hot' pixels for exposures longer than 1s
+        if exposure > 1:
+            data, _ = find_outlier_pixels(data)
         return (data, tstamp, exposure, temperature, {})
 
 

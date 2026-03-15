@@ -6,12 +6,14 @@ import gc
 import logging
 from pathlib import Path
 import sys
+from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 from argparse import Namespace, ArgumentParser
 from alive_progress import alive_bar
 from misdesigner import MisCurveRemover, MisInstrumentModel
 import numpy as np
+from numpy import ndarray
 from xarray import DataArray, Dataset, Variable, concat as xr_concat
 from uuid import uuid1
 import psutil
@@ -25,13 +27,21 @@ LOGGER = logging.getLogger(__name__)
 PROCESS = psutil.Process()
 
 
-def find_outlier_pixels(data, tolerance=3, worry_about_edges=True):
-    # This function finds the hot or dead pixels in a 2D dataset.
-    # tolerance is the number of standard deviations used to cutoff the hot pixels
-    # If you want to ignore the edges and greatly speed up the code, then set
-    # worry_about_edges to False.
-    #
-    # The function returns a list of hot pixels and also an image with with hot pixels removed
+def find_outlier_pixels(
+    data: ndarray,
+    tolerance: int | float = 3,
+    edge_compensation: bool = True
+) -> Tuple[ndarray, ndarray]:
+    """This function finds the hot or dead pixels in a 2D dataset. Tolerance is the number of standard deviations used to cutoff the hot pixels. If you want to ignore the edges and greatly speed up the code, then set edge_compensation to False. The function returns a list of hot pixels and also an image with with hot pixels removed.
+
+    Args:
+        data (ndarray): 2D array of pixel values.
+        tolerance (int | float, optional): Number of standard deviations used to cut off hot pixels. Defaults to 3.
+        edge_compensation (bool, optional): Whether to compensate for edges. Defaults to True. Setting this to False will ignore the edges and greatly speed up the code, but may miss hot pixels on the edges.
+
+    Returns:
+        Tuple[ndarray, ndarray]: A tuple containing the image with hot pixels removed and the list of hot pixels.
+    """
 
     from scipy.ndimage import median_filter
     blurred = median_filter(data, size=2)
@@ -48,7 +58,7 @@ def find_outlier_pixels(data, tolerance=3, worry_about_edges=True):
     for y, x in zip(hot_pixels[0], hot_pixels[1]):
         fixed_image[y, x] = blurred[y, x]
 
-    if worry_about_edges == True:
+    if edge_compensation == True:
         height, width = np.shape(data)
 
         ### Now get the pixels on the edges (but not the corners)###
@@ -115,7 +125,7 @@ def find_outlier_pixels(data, tolerance=3, worry_about_edges=True):
             hot_pixels = np.hstack((hot_pixels, [[height-1], [width-1]]))
             fixed_image[-1, -1] = med
 
-    return hot_pixels, fixed_image
+    return fixed_image, hot_pixels
 
 
 TimestampGenerator = Callable[[Path], float]
@@ -123,16 +133,41 @@ TimestampGenerator = Callable[[Path], float]
 Generates a timestamp from a file path. The timestamp is in seconds since UNIX epoch 1970-01-01 00:00:00 UTC.
 """
 
-FileListGenerator = Callable[[Path, TimestampGenerator, str], List[Path]]
+FileListGenerator = Callable[[
+    Path, TimestampGenerator, str], Tuple[List[Path], Optional[Any]]]
 """Generates a list of file paths with a given extension provided a directory and a timestamp generator. The file paths are sorted by the timestamp generated from the file paths. See get_filelist() for an implementation of this function.
 """
+
+
+def handle_compression(file: Path) -> Tuple[Path, TemporaryDirectory]:
+    if file.suffix == '.zip':
+        mode = 'zip'
+    elif file.suffix == '.tgz' or file.suffixes[-2:] == ['.tar', '.gz']:
+        mode = 'tar'
+    elif file.suffix == '.txz' or file.suffixes[-2:] == ['.tar', '.xz']:
+        mode = 'tar'
+    elif file.suffixes[-2:] == ['.tar', '.bz2']:
+        mode = 'tar'
+    else:
+        raise ValueError(f'Unsupported file type: {file.suffix}')
+    tempdir = TemporaryDirectory()
+    if mode == 'zip':
+        import zipfile
+        with zipfile.ZipFile(file, 'r') as zip_ref:
+            zip_ref.extractall(tempdir.name)
+    elif 'tar' in mode:
+        import tarfile
+        # kind = mode.split('.')[-1]
+        with tarfile.open(str(file), 'r') as tar_ref:
+            tar_ref.extractall(tempdir.name)
+    return Path(tempdir.name), tempdir
 
 
 def get_filelist(
     dir: Path,
     timestamp: TimestampGenerator,
     ext: str = 'fit'
-) -> List[Path]:
+) -> Tuple[List[Path], Optional[Any]]:
     """Enumerate files with extension in subdirectories to provided directory.
 
     Args:
@@ -141,13 +176,13 @@ def get_filelist(
         ext (str, optional): File extension to enumerate. Defaults to 'fit'.
 
     Returns:
-        List[Path]: List of file paths with extension `ext` in subdirectories of `dir`, sorted by creation time.
+        Tuple[List[Path], Optional[Any]]: A tuple containing the list of file paths with extension `ext` in subdirectories of `dir`, sorted by creation time, and an optional additional value, and an optional context object that may need to live as long as the file list is being used. The additional value is not used by the default implementation, but it can be used by custom implementations of FileListGenerator to return additional information along with the file list.
     """
-
+    context = None
     if not dir.exists():
         raise ValueError(f'Directory {dir} does not exist.')
     if not dir.is_dir():
-        raise ValueError(f'{dir} is not a directory.')
+        dir, context = handle_compression(dir)
     subdirs = [d for d in dir.iterdir() if d.is_dir()]
     filelist = []
     for subdir in subdirs:
@@ -164,7 +199,7 @@ def get_filelist(
         timestamp(filelist[-1]), tz=timezone.utc)
     LOGGER.info(
         f'First image: {start_date:%Y-%m-%d %H:%M:%S}, last image: {end_date:%Y-%m-%d %H:%M:%S}.')
-    return filelist
+    return filelist, context
 
 
 @dataclass
@@ -172,8 +207,8 @@ class DetectorNoise:
     """
     Data class to hold dark and bias values.
     """
-    dark: np.ndarray
-    bias: np.ndarray
+    dark: ndarray
+    bias: ndarray
     readnoise: float
 
 
@@ -186,7 +221,7 @@ Loader function for detector noise. Takes a file path and an optional read noise
 ImageLoader = Callable[
     [Path],
     Tuple[
-        np.ndarray,
+        ndarray,
         float,
         float,
         float,
@@ -196,7 +231,7 @@ ImageLoader = Callable[
 """Loads an image from the given path and returns a tuple of (data, timestamp, exposure time, temperature, metadata). Timestamp is in seconds since UNIX epoch 1970-01-01 00:00:00 UTC. Exposure time is in seconds. Temperature is in Celsius. Metadata is a dictionary of additional information, where each value is a tuple of (value, description).
 """
 
-ImageFormatter = Callable[[np.ndarray, MisCurveRemover], DataArray]
+ImageFormatter = Callable[[ndarray, MisCurveRemover], DataArray]
 """Formats the input image for use with the curve remover model. This may include cropping, resizing, or other preprocessing steps. The output should be a DataArray that can be directly fed into the curve remover model.
 """
 
@@ -205,8 +240,8 @@ ImageFormatter = Callable[[np.ndarray, MisCurveRemover], DataArray]
 class ImageFile:
     """Data class to hold image file information.
     """
-    data: np.ndarray
-    noise: Optional[np.ndarray]
+    data: ndarray
+    noise: Optional[ndarray]
     tstamp: float
     exposure: float
     temperature: float
@@ -231,8 +266,7 @@ class ImageFile:
             ImageFile: _description_
         """
         data, tstamp, exposure, temperature, metadata = loader(file)
-        if exposure > 1:
-            _, data = find_outlier_pixels(data)
+
         if detector_noise is not None:
             if calculate_noise:
                 rn = detector_noise.readnoise
@@ -406,6 +440,7 @@ class L1Converter:
     detnoise: Optional[DetectorNoise] = None
     window: Optional[List[str]] = None
     memlimit: int = 1024
+    filecontext: Optional[Any] = None
     _mem_used: int = 0
 
     @staticmethod
@@ -566,7 +601,9 @@ class L1Converter:
         idir = invocation_dir if invocation_dir is not None else Path.cwd()
         window = args.window.split(',') if args.window else None
         rootdir = Path(args.rootdir)
-        files = filelister(rootdir, timestamp, extension)
+        files, context = filelister(rootdir, timestamp, extension)
+        if rootdir.is_file():
+            rootdir = rootdir.parent
         outdir = Path(args.dest) if args.dest else rootdir / 'L1_data'
         outdir.mkdir(parents=True, exist_ok=True)
         destprefix = str(Path(args.dest_prefix).stem)
@@ -606,6 +643,7 @@ class L1Converter:
             timestamp(files[0]), tz=timezone.utc).date()
         return cls(
             imagefiles=files,
+            filecontext=context,
             outdir=outdir,
             prefix=destprefix,
             predictor=predictor,
