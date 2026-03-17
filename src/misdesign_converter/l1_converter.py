@@ -225,10 +225,21 @@ ImageLoader = Callable[
         float,
         float,
         float,
-        Dict[str, Tuple[Any, str]]
+        Dict[
+            str,
+            Tuple[
+                Any,
+                Optional[str]
+            ]
+        ]
     ]
 ]
-"""Loads an image from the given path and returns a tuple of (data, timestamp, exposure time, temperature, metadata). Timestamp is in seconds since UNIX epoch 1970-01-01 00:00:00 UTC. Exposure time is in seconds. Temperature is in Celsius. Metadata is a dictionary of additional information, where each value is a tuple of (value, description).
+"""Loads an image from the given path and returns a tuple of (data, timestamp, exposure time, temperature, metadata). 
+Timestamp is in seconds since UNIX epoch 1970-01-01 00:00:00 UTC. 
+Exposure time is in seconds. 
+Temperature is in Celsius.
+Metadata is a dictionary of additional information, where each value is a tuple of (value, description).
+The metadata is assumed to be time-dependent, and will be stored as a time series.
 """
 
 ImageFormatter = Callable[[ndarray, MisCurveRemover], DataArray]
@@ -245,7 +256,10 @@ class ImageFile:
     tstamp: float
     exposure: float
     temperature: float
-    metadata: Dict[str, Tuple[Any, str]] = field(default_factory=dict)
+    metadata: Dict[
+        str,
+        Tuple[Any, Optional[str]]
+    ] = field(default_factory=dict)
 
     @staticmethod
     def load(
@@ -263,14 +277,14 @@ class ImageFile:
             - calculate_noise (bool): Whether to calculate noise based on the detector noise information. If False, the noise will not be calculated and will be set to None.
 
         Returns:
-            ImageFile: _description_
+            ImageFile: An ImageFile object containing the loaded data, noise (if calculated), timestamp, exposure time, temperature, and metadata.
         """
         data, tstamp, exposure, temperature, metadata = loader(file)
 
         if detector_noise is not None:
             if calculate_noise:
                 rn = detector_noise.readnoise
-                noise = data + rn * rn + detector_noise.dark * exposure
+                noise = data + rn * rn
                 noise = np.sqrt(noise) / exposure
             else:
                 noise = None
@@ -354,8 +368,9 @@ class ImageFile:
                 image[key] = Variable(
                     dims='tstamp',
                     data=np.array([value]),
-                    attrs={'description': description}
                 )
+                if description is not None:
+                    image[key].attrs['description'] = description
             result.append(image)
         return result
 
