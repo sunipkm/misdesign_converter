@@ -18,6 +18,7 @@ from xarray import DataArray, Dataset, Variable, concat as xr_concat
 from uuid import uuid1
 import psutil
 from .secondary_straightening import SecondaryStraighten
+from .flatfield import FlatFieldCorrector
 from importlib.metadata import version
 
 __version__ = version(str(__package__))
@@ -452,6 +453,7 @@ class L1Converter:
     _start: date
     enable_noise: bool = False
     secondary: Optional[Tuple[str, Path]] = None
+    flatfield: Optional[FlatFieldCorrector] = None
     detnoise: Optional[DetectorNoise] = None
     window: Optional[List[str]] = None
     memlimit: int = 1024
@@ -566,6 +568,12 @@ class L1Converter:
             help='Whether to add noise to the data. Default is False.'
         )
         optional_args.add_argument(
+            '--flatfield',
+            required=False,
+            type=str,
+            help='Flat field image file path. If not provided, flat field correction will not be applied.'
+        )
+        optional_args.add_argument(
             '--secondary',
             nargs='+',
             type=str,
@@ -649,6 +657,10 @@ class L1Converter:
         else:
             raise ValueError(
                 'Invalid number of arguments for --secondary. Should be 1 or 2.')
+        if args.flatfield is None:
+            flatfield = None
+        else:
+            flatfield = FlatFieldCorrector(Path(args.flatfield))
         limit = args.memory_limit
         if limit <= 0:
             limit = 0
@@ -670,6 +682,7 @@ class L1Converter:
             secondary=secondary,
             window=window,
             memlimit=limit,
+            flatfield=flatfield,
             detnoise=detnoiseloader(dark) if dark is not None else None
         )
 
@@ -721,6 +734,9 @@ class L1Converter:
         tempdir = Path(tempmgr.name)
         mdigit = len(str(self.memlimit))
         secondary = None
+        if self.flatfield is not None:
+            windows = list(set(windows).intersection(
+                set(self.flatfield.windows)))
         if self.secondary is not None:
             kind = self.secondary[0]
             manager = SecondaryStraighten(self.secondary[1])
@@ -757,6 +773,13 @@ class L1Converter:
                         output = flatten_output(
                             windows, outputs, self.flatfinalize)
                         gc.collect()
+                        if self.flatfield is not None:
+                            bar.text = f'{self._start:%Y-%m-%d} [ _ MiB | {PROCESS.memory_info().rss / (1 << 20):.2f} MiB] Applying flat field correction...'
+                            for key in output.keys():
+                                # bar.text = f'Applying flat field correction to {key}...'
+                                output[key] = self.flatfield.apply(
+                                    output[key], key)
+                                bar.text = f'{self._start:%Y-%m-%d} [ _ MiB | {PROCESS.memory_info().rss / (1 << 20):.2f} MiB] Finished flat field correction for {key}.'
                         if secondary:
                             bar.text = f'{self._start:%Y-%m-%d} [ _ MiB | {PROCESS.memory_info().rss / (1 << 20):.2f} MiB] Secondary straightening...'
                             for key in output.keys():
