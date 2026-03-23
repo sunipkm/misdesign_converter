@@ -838,9 +838,14 @@ class L1Converter:
             output += ['Noise calculation enabled']
         else:
             output += ['Noise calculation disabled']
+        if self.flatfield is not None:
+            output += ['Flat field correction enabled']
+        else:
+            output += ['Flat field correction disabled']
         if self.secondary is not None:
             output += [
-                f'Secondary straightening enabled with kind "{self.secondary[0]}"']
+                f'Secondary straightening enabled with kind "{self.secondary[0]}"'
+            ]
         else:
             output += ['Secondary straightening disabled']
         if self.memlimit > 0:
